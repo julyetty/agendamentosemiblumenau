@@ -92,16 +92,14 @@ function tituloDoDia(iso: string) {
   return `${semana.charAt(0).toUpperCase() + semana.slice(1)}, ${d} de ${mes}`;
 }
 
-function nomesDosInternos(texto: string) {
-  return texto
-    .split(/[\n,;]+/)
-    .map((nome) => nome.trim())
-    .filter((nome) => nome.length > 0);
+function nomesDosInternos(texto: string[]) {
+  const nomes = texto.filter((nome) => nome.trim() !== "");
+  if (nomes.length > 1) return nomes.join("\n");
+  return nomes[0] ?? "—";
 }
 
 function observacaoDoAgendamento(i: Agendamento) {
   const partes: string[] = [];
-  if (i.tipo === "Escolarização" && i.turma) partes.push(i.turma);
   if (i.palestrante) partes.push(`Palestrante: ${i.palestrante}`);
   if (i.religiosos && i.religiosos.length > 0) {
     partes.push(`Religioso: ${i.religiosos.join(", ")}`);
@@ -113,12 +111,6 @@ function observacaoDoAgendamento(i: Agendamento) {
   if (i.observacaoManutencao) partes.push(`Manutenção: ${i.observacaoManutencao}`);
   if (i.observacao) partes.push(i.observacao);
   return partes.length > 0 ? partes.join("\n") : "—";
-}
-
-function textoInternos(internos: string[]) {
-  const nomes = internos.filter((nome) => nome.trim() !== "");
-  if (nomes.length > 1) return nomes.join("\n");
-  return nomes[0] ?? "—";
 }
 
 function mensagemErro(error: unknown, fallback: string) {
@@ -179,7 +171,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   const [internos, setInternos] = useState<string[]>([]);
   const [tipo, setTipo] = useState<Tipo>("Psicológico");
   const [local, setLocal] = useState("");
-  const [nomeEscola, setNomeEscola] = useState("");
   const [palestrante, setPalestrante] = useState("");
   const [religiosoNome, setReligiosoNome] = useState("");
   const [religiosos, setReligiosos] = useState<string[]>([]);
@@ -237,7 +228,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
       setHorarioFim("");
       setInterno("");
       setInternos([]);
-      setNomeEscola("");
       setPalestrante("");
       setReligiosoNome("");
       setReligiosos([]);
@@ -306,7 +296,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     setReligiosos((prev) => prev.filter((n) => n !== nome));
 
   const adicionar = async () => {
-      const escola = nomeEscola.trim();
       const nomes = interno.trim()
         ? [...internos, interno.trim()]
         : internos;
@@ -324,21 +313,11 @@ function Cronograma({ onSair }: { onSair: () => void }) {
         setErro("Informe o local do atendimento.");
         return;
       }
-      if (tipo === "Escolarização" && !escola) {
-        setErro("Informe o nome da escola / observação.");
-        return;
-      }
-      const nomePalestrante = palestrante.trim();
-      const listaReligiosos = precisaReligioso ? listaReligiososAtual() : [];
-      const listaVisitantes =
-        visitanteNome.trim() && visitanteParentesco.trim()
-          ? [...visitantes, { nome: visitanteNome.trim(), parentesco: visitanteParentesco.trim() }]
-          : visitantes;
-      if (precisaPessoa && listaVisitantes.length === 0) {
+      if (precisaPessoa && visitantes.length === 0) {
         setErro("Informe o nome e o parentesco de ao menos uma pessoa.");
         return;
       }
-  
+
       const registros = nomes.map((nome) => {
         const item: Agendamento = {
           id: "",
@@ -348,10 +327,10 @@ function Cronograma({ onSair }: { onSair: () => void }) {
           interno: nome,
           tipo,
           local: local.trim(),
-          turma: tipo === "Escolarização" ? escola : undefined,
-          palestrante: precisaPalestrante && nomePalestrante ? nomePalestrante : undefined,
-          religiosos: precisaReligioso && listaReligiosos.length > 0 ? listaReligiosos : undefined,
-          visitantes: precisaPessoa ? listaVisitantes : undefined,
+          turma: undefined,
+          palestrante: precisaPalestrante && palestrante ? palestrante : undefined,
+          religiosos: precisaReligioso && listaReligiososAtual().length > 0 ? listaReligiososAtual() : undefined,
+          visitantes: precisaPessoa ? visitantes : undefined,
           observacao: observacao.trim() || undefined,
           observacaoSaude: precisaObservacaoSaude && observacaoSaude.trim() ? observacaoSaude.trim() : undefined,
           observacaoManutencao:
@@ -361,9 +340,9 @@ function Cronograma({ onSair }: { onSair: () => void }) {
         return {
           tipo_atendimento: tipo,
           nome_interno: nome,
-          turma: tipo === "Escolarização" ? escola : null,
-          nomes_religiosos: precisaReligioso && listaReligiosos.length > 0 ? listaReligiosos : null,
-          nome_palestrante: precisaPalestrante && nomePalestrante ? nomePalestrante : null,
+          turma: null,
+          nomes_religiosos: precisaReligioso && listaReligiososAtual().length > 0 ? listaReligiososAtual() : null,
+          nome_palestrante: precisaPalestrante && palestrante ? palestrante : null,
           observacoes: observacaoTexto === "—" ? null : observacaoTexto,
           observacao_saude: item.observacaoSaude ?? null,
           observacao_manutencao: item.observacaoManutencao ?? null,
@@ -371,7 +350,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
           data_atendimento: data,
           horario,
           horario_fim: horarioFim,
-          visitantes: precisaPessoa ? listaVisitantes : null,
+          visitantes: precisaPessoa ? visitantes : null,
         };
       });
 
@@ -434,7 +413,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     horarioFim: string;
     tipo: Tipo;
     local: string;
-    turma?: string | undefined;
     internos: string[];
     complemento: string;
   };
@@ -453,8 +431,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
           g.tipo === i.tipo &&
           g.horario === i.horario &&
           g.horarioFim === i.horarioFim &&
-          g.local === i.local &&
-          (i.tipo !== "Escolarização" || g.turma === i.turma),
+          g.local === i.local,
       );
       if (alvo) {
         alvo.ids.push(i.id);
@@ -468,7 +445,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
         horarioFim: i.horarioFim,
         tipo: i.tipo,
         local: i.local,
-        turma: i.turma,
         internos: [i.interno],
         complemento: comp,
       });
@@ -506,6 +482,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     const zebraImpar: [number, number, number] = [243, 244, 246];
     const bordaSuave: [number, number, number] = [209, 213, 219];
     const textoEscuro: [number, number, number] = [17, 24, 39];
+    const destaque: [number, number, number] = [31, 41, 55];
 
     autoTable(doc, {
       startY: fimDeSemana ? 28 : 33,
@@ -526,14 +503,14 @@ function Cronograma({ onSair }: { onSair: () => void }) {
             : [
                 `${l.grupo.horario} – ${l.grupo.horarioFim}`,
                 l.grupo.tipo,
-                textoInternos(l.grupo.internos),
+                nomesDosInternos(l.grupo.internos),
                 l.grupo.local,
                 l.grupo.complemento === "—" ? "—" : l.grupo.complemento,
               ],
       ),
       theme: "grid",
       headStyles: {
-        fillColor: [31, 41, 55],
+        fillColor: destaque,
         textColor: 255,
         fontStyle: "bold",
         fontSize: 9,
@@ -567,7 +544,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
         }
         if (l?.kind === "grupo" && l.grupo.complemento) {
           const texto = l.grupo.complemento.toString();
-          const linhasTexto = texto.split("\\n").length;
+          const linhasTexto = texto.split("\n").length;
           const alturaMinima = linhasTexto * 12 + 6;
           if (hookData.cell.styles.minCellHeight < alturaMinima) {
             hookData.cell.styles.minCellHeight = alturaMinima;
@@ -675,11 +652,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                     }
                     if (novo !== "Palestra") {
                       setPalestrante("");
-                    }
-                    if (novo !== "Escolarização") {
-                      setNomeEscola("");
-                    } else {
-                      setInternos([]);
                     }
                   }}
                   className={inputCls}
@@ -893,25 +865,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                 </div>
               )}
 
-              {tipo === "Escolarização" && (
-                <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-                    Dados da escolarização
-                  </p>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-ink">Nome da Escola / Observação:</span>
-                    <textarea
-                      value={nomeEscola}
-                      onChange={(e) => setNomeEscola(e.target.value)}
-                      rows={2}
-                      required
-                      placeholder="Informe a instituição de ensino responsável"
-                      className={inputCls}
-                    />
-                  </label>
-                </div>
-              )}
-
               {precisaPessoa && (
                 <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
@@ -1064,7 +1017,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                           </span>
                         </td>
                         <td className="px-3 py-3 text-pure">
-                          <span className="whitespace-pre-line">{textoInternos(l.grupo.internos)}</span>
+                          <span className="whitespace-pre-line">{nomesDosInternos(l.grupo.internos)}</span>
                         </td>
                         <td className="px-3 py-3 text-pure">{l.grupo.local}</td>
                         <td className="px-5 py-3 text-pure">
@@ -1092,3 +1045,5 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     </div>
   );
 }
+
+export default Index;

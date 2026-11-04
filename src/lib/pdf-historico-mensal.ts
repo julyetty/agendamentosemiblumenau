@@ -11,7 +11,6 @@ type AtendimentoRow = {
   id: number;
   tipo_atendimento: string;
   nome_interno: string | null;
-  turma: string | null;
   nomes_religiosos: string[] | null;
   nome_palestrante: string | null;
   observacoes: string | null;
@@ -32,7 +31,6 @@ type AtendimentoMes = {
   interno: string;
   tipo: string;
   local: string;
-  turma?: string | undefined;
   palestrante?: string | undefined;
   religiosos?: string[] | undefined;
   visitantes?: Visitante[] | undefined;
@@ -47,7 +45,6 @@ type GrupoDia = {
   horarioFim: string;
   tipo: string;
   local: string;
-  turma?: string | undefined;
   internos: string[];
   observacao: string;
 };
@@ -86,7 +83,6 @@ function dataBr(iso: string) {
 
 function observacaoDoAtendimento(i: AtendimentoMes) {
   const partes: string[] = [];
-  if (i.tipo === "Escolarização" && i.turma) partes.push(i.turma);
   if (i.palestrante) partes.push(`Palestrante: ${i.palestrante}`);
   if (i.religiosos && i.religiosos.length > 0) {
     partes.push(`Religioso: ${i.religiosos.join(", ")}`);
@@ -115,7 +111,6 @@ function rowToAtendimento(row: AtendimentoRow): AtendimentoMes {
     interno: row.nome_interno ?? "",
     tipo: row.tipo_atendimento || "—",
     local: row.local || "—",
-    turma: row.turma ?? undefined,
     palestrante: row.nome_palestrante ?? undefined,
     religiosos: row.nomes_religiosos ?? undefined,
     visitantes: Array.isArray(row.visitantes) ? row.visitantes : undefined,
@@ -174,8 +169,7 @@ function agruparPorDia(itens: AtendimentoMes[]) {
         g.horario === item.horario &&
         g.horarioFim === item.horarioFim &&
         g.tipo === item.tipo &&
-        g.local === item.local &&
-        (item.tipo !== "Escolarização" || g.turma === item.turma),
+        g.local === item.local,
     );
 
     if (alvo) {
@@ -192,7 +186,6 @@ function agruparPorDia(itens: AtendimentoMes[]) {
       horarioFim: item.horarioFim,
       tipo: item.tipo,
       local: item.local,
-      turma: item.turma,
       internos: item.interno ? [item.interno] : [],
       observacao: observacaoDoAtendimento(item),
     });
