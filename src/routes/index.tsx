@@ -88,9 +88,22 @@ function formatarObservacaoVideochamada(visitantes: Visitante[]): string {
   return `${rotulo}: ${partes.join(", ")}`;
 }
 
+function formatarObservacaoVisitaPresencial(visitantes: Visitante[]): string {
+  const lista = visitantes
+    .map((v) => ({ nome: v.nome.trim(), parentesco: v.parentesco.trim() }))
+    .filter((v) => v.nome && v.parentesco);
+  if (lista.length === 0) return "";
+  const partes = lista.map((v) => `${v.nome} (${v.parentesco})`);
+  const rotulo = lista.length === 1 ? "Visitante" : "Visitantes";
+  return `${rotulo}: ${partes.join(", ")}`;
+}
+
 function observacaoDoAgendamento(i: Agendamento) {
   if (i.tipo === "Videochamada" && i.visitantes && i.visitantes.length > 0) {
     return formatarObservacaoVideochamada(i.visitantes);
+  }
+  if (i.tipo === "Visita presencial" && i.visitantes && i.visitantes.length > 0) {
+    return formatarObservacaoVisitaPresencial(i.visitantes);
   }
   return i.observacao && i.observacao.trim() !== "" ? i.observacao.trim() : "—";
 }
@@ -267,7 +280,9 @@ function Cronograma({ onSair }: { onSair: () => void }) {
       const observacaoFinal =
         tipo === "Videochamada"
           ? formatarObservacaoVideochamada(visitantes)
-          : observacao.trim() || undefined;
+          : tipo === "Visita presencial"
+            ? formatarObservacaoVisitaPresencial(visitantes)
+            : observacao.trim() || undefined;
 
       const registros = nomes.map((nome) => {
         return {
@@ -587,7 +602,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                   onChange={(e) => {
                     const novo = e.target.value as Tipo;
                     setTipo(novo);
-                    if (novo === "Videochamada") {
+                    if (novo === "Videochamada" || novo === "Visita presencial") {
                       setObservacao("");
                     }
                   }}
@@ -659,7 +674,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                 />
               </label>
 
-              {tipo !== "Videochamada" && (
+              {!precisaPessoa && (
                 <div className="block">
                   <span className="mb-1 block text-xs font-medium text-ink">Observação</span>
                   <textarea

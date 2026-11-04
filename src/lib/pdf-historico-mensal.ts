@@ -84,9 +84,22 @@ function formatarObservacaoVideochamada(visitantes: Visitante[]): string {
   return `${rotulo}: ${partes.join(", ")}`;
 }
 
+function formatarObservacaoVisitaPresencial(visitantes: Visitante[]): string {
+  const lista = visitantes
+    .map((v) => ({ nome: v.nome.trim(), parentesco: v.parentesco.trim() }))
+    .filter((v) => v.nome && v.parentesco);
+  if (lista.length === 0) return "";
+  const partes = lista.map((v) => `${v.nome} (${v.parentesco})`);
+  const rotulo = lista.length === 1 ? "Visitante" : "Visitantes";
+  return `${rotulo}: ${partes.join(", ")}`;
+}
+
 function observacaoDoAtendimento(i: AtendimentoMes): string {
   if (i.tipo === "Videochamada" && i.visitantes && i.visitantes.length > 0) {
     return formatarObservacaoVideochamada(i.visitantes);
+  }
+  if (i.tipo === "Visita presencial" && i.visitantes && i.visitantes.length > 0) {
+    return formatarObservacaoVisitaPresencial(i.visitantes);
   }
   return i.observacao && i.observacao.trim() !== "" ? i.observacao.trim() : "—";
 }
