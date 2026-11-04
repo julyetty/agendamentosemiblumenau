@@ -17,6 +17,7 @@ type AtendimentoRow = {
   horario: string | null;
   horario_fim: string | null;
   created_at: string;
+  visitantes?: string | null;
 };
 
 type AtendimentoMes = {
@@ -28,6 +29,7 @@ type AtendimentoMes = {
   tipo: string;
   local: string;
   observacao?: string | undefined;
+  visitantes?: Visitante[];
 };
 
 type GrupoDia = {
@@ -72,7 +74,20 @@ function dataBr(iso: string) {
   return `${d}/${m}/${a}`;
 }
 
-function observacaoDoAtendimento(i: AtendimentoMes) {
+function formatarObservacaoVideochamada(visitantes: Visitante[]): string {
+  const lista = visitantes
+    .map((v) => ({ nome: v.nome.trim(), parentesco: v.parentesco.trim() }))
+    .filter((v) => v.nome && v.parentesco);
+  if (lista.length === 0) return "";
+  const partes = lista.map((v) => `${v.nome} (${v.parentesco})`);
+  const rotulo = lista.length === 1 ? "Familiar" : "Familiares";
+  return `${rotulo}: ${partes.join(", ")}`;
+}
+
+function observacaoDoAtendimento(i: AtendimentoMes): string {
+  if (i.tipo === "Videochamada" && i.visitantes && i.visitantes.length > 0) {
+    return formatarObservacaoVideochamada(i.visitantes);
+  }
   return i.observacao && i.observacao.trim() !== "" ? i.observacao.trim() : "—";
 }
 
@@ -83,6 +98,14 @@ function textoInternos(internos: string[]) {
 }
 
 function rowToAtendimento(row: AtendimentoRow): AtendimentoMes {
+  let visitantes: Visitante[] = [];
+  if (row.visitantes) {
+    try {
+      visitantes = JSON.parse(row.visitantes);
+    } catch {
+      visitantes = [];
+    }
+  }
   return {
     id: String(row.id),
     data: row.data_atendimento ?? "",
@@ -92,6 +115,7 @@ function rowToAtendimento(row: AtendimentoRow): AtendimentoMes {
     tipo: row.tipo_atendimento || "—",
     local: row.local || "—",
     observacao: row.observacao ?? undefined,
+    visitantes,
   };
 }
 
@@ -170,11 +194,9 @@ function agruparPorDia(itens: AtendimentoMes[]) {
 }
 
 function horarioTexto(horario: string, horarioFim: string) {
-  // Se já vier com o formato "Hora – Hora", exibe direto
   if (horario.includes("–") || horario.includes("-")) {
     return horario.trim();
   }
-  // Caso contrário, formate como "Hora – Hora"
   if (horario && horarioFim) return `${horario} – ${horarioFim}`;
   return horario || "—";
 }

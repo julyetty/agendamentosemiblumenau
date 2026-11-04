@@ -40,6 +40,7 @@ type Agendamento = {
   tipo: Tipo;
   local: string;
   observacao?: string | undefined;
+  visitantes?: Visitante[];
 };
 
 type AtendimentoRow = {
@@ -52,6 +53,7 @@ type AtendimentoRow = {
   horario: string | null;
   horario_fim: string | null;
   created_at: string;
+  visitantes?: string | null;
 };
 
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -76,7 +78,20 @@ function nomesDosInternos(texto: string[]) {
   return nomes[0] ?? "—";
 }
 
+function formatarObservacaoVideochamada(visitantes: Visitante[]): string {
+  const lista = visitantes
+    .map((v) => ({ nome: v.nome.trim(), parentesco: v.parentesco.trim() }))
+    .filter((v) => v.nome && v.parentesco);
+  if (lista.length === 0) return "";
+  const partes = lista.map((v) => `${v.nome} (${v.parentesco})`);
+  const rotulo = lista.length === 1 ? "Familiar" : "Familiares";
+  return `${rotulo}: ${partes.join(", ")}`;
+}
+
 function observacaoDoAgendamento(i: Agendamento) {
+  if (i.tipo === "Videochamada" && i.visitantes && i.visitantes.length > 0) {
+    return formatarObservacaoVideochamada(i.visitantes);
+  }
   return i.observacao && i.observacao.trim() !== "" ? i.observacao.trim() : "—";
 }
 
@@ -89,6 +104,14 @@ function mensagemErro(error: unknown, fallback: string) {
 }
 
 function rowToAgendamento(row: AtendimentoRow): Agendamento {
+  let visitantes: Visitante[] = [];
+  if (row.visitantes) {
+    try {
+      visitantes = JSON.parse(row.visitantes);
+    } catch {
+      visitantes = [];
+    }
+  }
   return {
     id: String(row.id),
     data: row.data_atendimento ?? hoje(),
@@ -98,6 +121,7 @@ function rowToAgendamento(row: AtendimentoRow): Agendamento {
     tipo: asTipo(row.tipo_atendimento),
     local: row.local ?? "",
     observacao: row.observacao ?? undefined,
+    visitantes,
   };
 }
 
@@ -240,6 +264,11 @@ function Cronograma({ onSair }: { onSair: () => void }) {
         return;
       }
 
+      const observacaoFinal =
+        tipo === "Videochamada"
+          ? formatarObservacaoVideochamada(visitantes)
+          : observacao.trim() || undefined;
+
       const registros = nomes.map((nome) => {
         return {
           data_atendimento: data,
@@ -249,7 +278,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
           tipo_atendimento: tipo,
           nome_interno: nome,
           local: local.trim(),
-          observacao: observacao.trim() || undefined,
+          observacao: observacaoFinal,
         };
       });
 
@@ -273,7 +302,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   };
 
   const excluirAtendimento = async (id: string) => {
-    // Valida que o ID é um número simples antes de prosseguir
     const idNum = Number(id);
     if (!id || isNaN(idNum)) {
       setErro("ID inválido para exclusão.");
@@ -305,7 +333,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   };
 
   const excluirGrupo = async (ids: string[]) => {
-    // Exclui cada atendimento individualmente usando .eq('id', id)
     for (const id of ids) {
       await excluirAtendimento(id);
     }
@@ -380,11 +407,9 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   }, [doDia]);
 
   const gerarHorarioTexto = (horario: string, horarioFim: string) => {
-    // Se já vier com o formato "Hora – Hora", exibe direto
     if (horario.includes("–") || horario.includes("-")) {
       return horario.trim();
     }
-    // Caso contrário, formate como "Hora – Hora"
     return `${horario} – ${horarioFim}`;
   };
 
@@ -563,7 +588,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                     const novo = e.target.value as Tipo;
                     setTipo(novo);
                     if (novo === "Videochamada") {
-                      setObservacao("Dados da videochamada");
+                      setObservacao("");
                     }
                   }}
                   className={inputCls}
@@ -634,16 +659,18 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                 />
               </label>
 
-              <div className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">Observação</span>
-                <textarea
-                  value={observacao}
-                  onChange={(e) => setObservacao(e.target.value)}
-                  rows={2}
-                  placeholder="Digite observações adicionais sobre esta atividade (opcional)..."
-                  className={inputCls}
-                />
-              </div>
+              {tipo !== "Videochamada" && (
+                <div className="block">
+                  <span className="mb-1 block text-xs font-medium text-ink">Observação</span>
+                  <textarea
+                    value={observacao}
+                    onChange={(e) => setObservacao(e.target.value)}
+                    rows={2}
+                    placeholder="Digite observações adicionais sobre esta atividade (opcional)..."
+                    className={inputCls}
+                  />
+                </div>
+              )}
 
               {precisaPessoa && (
                 <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
