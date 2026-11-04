@@ -272,16 +272,48 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     }
   };
 
+  // Função auxiliar para validar e converter ID para o formato adequado
+  function validarId(id: string): string | number | null {
+    // Se o ID for vazio, nulo ou NaN, retorna null
+    if (!id || id === "null" || id === "undefined" || isNaN(Number(id))) {
+      return null;
+    }
+    const numId = Number(id);
+    // Se for um número válido, retorna o número
+    if (!isNaN(numId)) {
+      return numId;
+    }
+    // Caso contrário, retorna o ID como string (para UUIDs)
+    return id;
+  }
+
   const excluirGrupo = async (ids: string[]) => {
-    setExcluindoId(ids[0] ?? null);
+    // Filtra IDs inválidos (null, undefined, NaN) antes de prosseguir
+    const idsValidos = ids.filter((id) => {
+      const validado = validarId(id);
+      return validado !== null;
+    });
+
+    if (idsValidos.length === 0) {
+      setErro("Nenhum ID válido encontrado para exclusão.");
+      setExcluindoId(null);
+      return;
+    }
+
+    setExcluindoId(idsValidos[0] ?? null);
+
     try {
+      // Converte IDs para o formato adequado para o Supabase
+      const idsFormatados = idsValidos.map((id) => {
+        const validado = validarId(String(id));
+        return validado;
+      });
+
       const { error } = await supabase
         .from("atendimentos")
         .delete()
-        .in(
-          "id",
-          ids.map((id) => Number(id)),
-        );
+        .in("id", idsFormatados as (string | number)[]);
+
       if (error) {
         setErro(error.message);
         toast.error(error.message);
