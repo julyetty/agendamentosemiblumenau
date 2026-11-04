@@ -1,7 +1,7 @@
 export const TIPOS = [
   "Social",
   "Escolarização",
-  "Oficina de informática",
+  "Oficina",
   "Palestra",
   "Pedagógico",
   "Psicológico",
@@ -33,7 +33,7 @@ export type Local = (typeof LOCAIS)[number];
 export const TONE: Record<Tipo, string> = {
   Social: "bg-act-assistencia",
   Escolarização: "bg-act-escolarizacao",
-  "Oficina de informática": "bg-act-oficina",
+  Oficina: "bg-act-oficina",
   Palestra: "bg-act-palestra",
   Pedagógico: "bg-act-pedagogico",
   Psicológico: "bg-act-psicologico",
