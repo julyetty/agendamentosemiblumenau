@@ -170,6 +170,11 @@ function agruparPorDia(itens: AtendimentoMes[]) {
 }
 
 function horarioTexto(horario: string, horarioFim: string) {
+  // Se já vier com o formato "Hora – Hora", exibe direto
+  if (horario.includes("–") || horario.includes("-")) {
+    return horario.trim();
+  }
+  // Caso contrário, formate como "Hora – Hora"
   if (horario && horarioFim) return `${horario} – ${horarioFim}`;
   return horario || "—";
 }

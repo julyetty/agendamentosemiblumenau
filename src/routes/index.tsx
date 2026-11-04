@@ -256,7 +256,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
           data_atendimento: data,
           horario_inicio: horario,
           horario_fim: horarioFim,
-          horario: `${horario} - ${horarioFim}`,
+          horario: horario,
           tipo_atendimento: tipo,
           nome_interno: nome,
           local: local.trim(),
@@ -375,6 +375,15 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     return ordenadas;
   }, [doDia, data]);
 
+  const gerarHorarioTexto = (horario: string, horarioFim: string) => {
+    // Se já vier com o formato "Hora – Hora", exibe direto
+    if (horario.includes("–") || horario.includes("-")) {
+      return horario.trim();
+    }
+    // Caso contrário, formate como "Hora – Hora"
+    return `${horario} – ${horarioFim}`;
+  };
+
   const gerarPdf = () => {
     const doc = new jsPDF({ orientation: "portrait", format: "a4" });
     doc.setFontSize(14);
@@ -411,7 +420,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
           : l.kind === "intervalo"
             ? [`${l.horario} – ${l.fim}`, "Intervalo Escolarização", "—", "—", ""]
             : [
-                `${l.grupo.horario} – ${l.grupo.horarioFim}`,
+                gerarHorarioTexto(l.grupo.horario, l.grupo.horarioFim),
                 l.grupo.tipo,
                 nomesDosInternos(l.grupo.internos),
                 l.grupo.local,
@@ -778,7 +787,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                     ) : (
                       <tr key={l.grupo.ids.join("-")} className="border-b border-line/70">
                         <td className="px-5 py-3 font-medium tabular-nums text-pure">
-                          {l.grupo.horario} – {l.grupo.horarioFim}
+                          {gerarHorarioTexto(l.grupo.horario, l.grupo.horarioFim)}
                         </td>
                         <td className="px-3 py-3">
                           <span
