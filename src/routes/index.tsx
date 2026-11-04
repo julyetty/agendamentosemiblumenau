@@ -39,30 +39,18 @@ type Agendamento = {
   interno: string;
   tipo: Tipo;
   local: string;
-  turma?: string | undefined;
-  palestrante?: string | undefined;
-  religiosos?: string[] | undefined;
-  visitantes?: Visitante[] | undefined;
   observacao?: string | undefined;
-  observacaoSaude?: string | undefined;
-  observacaoManutencao?: string | undefined;
 };
 
 type AtendimentoRow = {
   id: number;
   tipo_atendimento: string;
   nome_interno: string | null;
-  turma: string | null;
-  nomes_religiosos: string[] | null;
-  nome_palestrante: string | null;
-  observacoes: string | null;
-  observacao_saude: string | null;
-  observacao_manutencao: string | null;
   local: string | null;
+  observacao: string | null;
   data_atendimento: string | null;
   horario: string | null;
   horario_fim: string | null;
-  visitantes: Visitante[] | null;
   created_at: string;
 };
 
@@ -99,18 +87,7 @@ function nomesDosInternos(texto: string[]) {
 }
 
 function observacaoDoAgendamento(i: Agendamento) {
-  const partes: string[] = [];
-  if (i.palestrante) partes.push(`Palestrante: ${i.palestrante}`);
-  if (i.religiosos && i.religiosos.length > 0) {
-    partes.push(`Religioso: ${i.religiosos.join(", ")}`);
-  }
-  if (i.visitantes && i.visitantes.length > 0) {
-    partes.push(i.visitantes.map((v) => `${v.nome} · ${v.parentesco}`).join("\n"));
-  }
-  if (i.observacaoSaude) partes.push(i.observacaoSaude);
-  if (i.observacaoManutencao) partes.push(`Manutenção: ${i.observacaoManutencao}`);
-  if (i.observacao) partes.push(i.observacao);
-  return partes.length > 0 ? partes.join("\n") : "—";
+  return i.observacao && i.observacao.trim() !== "" ? i.observacao.trim() : "—";
 }
 
 function mensagemErro(error: unknown, fallback: string) {
@@ -130,13 +107,7 @@ function rowToAgendamento(row: AtendimentoRow): Agendamento {
     interno: row.nome_interno ?? "",
     tipo: asTipo(row.tipo_atendimento),
     local: row.local ?? "",
-    turma: row.turma ?? undefined,
-    palestrante: row.nome_palestrante ?? undefined,
-    religiosos: row.nomes_religiosos ?? undefined,
-    visitantes: Array.isArray(row.visitantes) ? row.visitantes : undefined,
-    observacao: row.observacoes ?? undefined,
-    observacaoSaude: row.observacao_saude ?? undefined,
-    observacaoManutencao: row.observacao_manutencao ?? undefined,
+    observacao: row.observacao ?? undefined,
   };
 }
 
@@ -171,23 +142,14 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   const [internos, setInternos] = useState<string[]>([]);
   const [tipo, setTipo] = useState<Tipo>("Psicológico");
   const [local, setLocal] = useState("");
-  const [palestrante, setPalestrante] = useState("");
-  const [religiosoNome, setReligiosoNome] = useState("");
-  const [religiosos, setReligiosos] = useState<string[]>([]);
   const [visitanteNome, setVisitanteNome] = useState("");
   const [visitanteParentesco, setVisitanteParentesco] = useState("");
   const [visitantes, setVisitantes] = useState<Visitante[]>([]);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
-  const [observacaoSaude, setObservacaoSaude] = useState("");
-  const [observacaoManutencao, setObservacaoManutencao] = useState("");
   const [observacao, setObservacao] = useState("");
 
-  const precisaObservacaoSaude = tipo === "Saúde";
-  const precisaObservacaoManutencao = tipo === "Manutenção";
-  const precisaPalestrante = tipo === "Palestra";
-  const precisaReligioso = tipo === "Religioso";
   const precisaPessoa = tipo === "Videochamada" || tipo === "Visita presencial";
   const fimDeSemana = ehFimDeSemana(data);
 
@@ -228,14 +190,9 @@ function Cronograma({ onSair }: { onSair: () => void }) {
       setHorarioFim("");
       setInterno("");
       setInternos([]);
-      setPalestrante("");
-      setReligiosoNome("");
-      setReligiosos([]);
       setVisitanteNome("");
       setVisitanteParentesco("");
       setVisitantes([]);
-      setObservacaoSaude("");
-      setObservacaoManutencao("");
       setObservacao("");
       setErro("");
     };
@@ -271,30 +228,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   const removerInternoDaLista = (nome: string) =>
     setInternos((prev) => prev.filter((n) => n !== nome));
 
-  const listaReligiososAtual = () => {
-    const digitado = religiosoNome.trim();
-    if (!digitado) return religiosos;
-    if (religiosos.some((n) => n.toLowerCase() === digitado.toLowerCase())) {
-      return religiosos;
-    }
-    return [...religiosos, digitado];
-  };
-
-  const adicionarReligiosoNaLista = () => {
-    const nome = religiosoNome.trim();
-    if (!nome) return;
-    if (religiosos.some((n) => n.toLowerCase() === nome.toLowerCase())) {
-      setErro("Este nome já está na lista.");
-      return;
-    }
-    setReligiosos((prev) => [...prev, nome]);
-    setReligiosoNome("");
-    setErro("");
-  };
-
-  const removerReligiosoDaLista = (nome: string) =>
-    setReligiosos((prev) => prev.filter((n) => n !== nome));
-
   const adicionar = async () => {
       const nomes = interno.trim()
         ? [...internos, interno.trim()]
@@ -319,7 +252,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
       }
 
       const registros = nomes.map((nome) => {
-        const item: Agendamento = {
+        const observacaoTexto = observacaoDoAgendamento({
           id: "",
           data,
           horario,
@@ -327,30 +260,16 @@ function Cronograma({ onSair }: { onSair: () => void }) {
           interno: nome,
           tipo,
           local: local.trim(),
-          turma: undefined,
-          palestrante: precisaPalestrante && palestrante ? palestrante : undefined,
-          religiosos: precisaReligioso && listaReligiososAtual().length > 0 ? listaReligiososAtual() : undefined,
-          visitantes: precisaPessoa ? visitantes : undefined,
           observacao: observacao.trim() || undefined,
-          observacaoSaude: precisaObservacaoSaude && observacaoSaude.trim() ? observacaoSaude.trim() : undefined,
-          observacaoManutencao:
-            precisaObservacaoManutencao && observacaoManutencao.trim() ? observacaoManutencao.trim() : undefined,
-        };
-        const observacaoTexto = observacaoDoAgendamento(item);
+        });
         return {
           tipo_atendimento: tipo,
           nome_interno: nome,
-          turma: null,
-          nomes_religiosos: precisaReligioso && listaReligiososAtual().length > 0 ? listaReligiososAtual() : null,
-          nome_palestrante: precisaPalestrante && palestrante ? palestrante : null,
-          observacoes: observacaoTexto === "—" ? null : observacaoTexto,
-          observacao_saude: item.observacaoSaude ?? null,
-          observacao_manutencao: item.observacaoManutencao ?? null,
           local: local.trim(),
+          observacao: observacaoTexto === "—" ? null : observacaoTexto,
           data_atendimento: data,
           horario,
           horario_fim: horarioFim,
-          visitantes: precisaPessoa ? visitantes : null,
         };
       });
 
@@ -414,7 +333,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     tipo: Tipo;
     local: string;
     internos: string[];
-    complemento: string;
+    observacao: string;
   };
 
   type Linha =
@@ -436,7 +355,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
       if (alvo) {
         alvo.ids.push(i.id);
         alvo.internos.push(i.interno);
-        if (alvo.complemento === "—") alvo.complemento = comp;
+        if (alvo.observacao === "—") alvo.observacao = comp;
         continue;
       }
       grupos.push({
@@ -446,7 +365,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
         tipo: i.tipo,
         local: i.local,
         internos: [i.interno],
-        complemento: comp,
+        observacao: comp,
       });
     }
     const base: Linha[] = grupos.map((grupo) => ({ kind: "grupo", grupo }));
@@ -505,7 +424,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                 l.grupo.tipo,
                 nomesDosInternos(l.grupo.internos),
                 l.grupo.local,
-                l.grupo.complemento === "—" ? "—" : l.grupo.complemento,
+                l.grupo.observacao === "—" ? "—" : l.grupo.observacao,
               ],
       ),
       theme: "grid",
@@ -542,8 +461,8 @@ function Cronograma({ onSair }: { onSair: () => void }) {
         if (l?.kind === "turno") {
           hookData.cell.styles.minCellHeight = 6;
         }
-        if (l?.kind === "grupo" && l.grupo.complemento) {
-          const texto = l.grupo.complemento.toString();
+        if (l?.kind === "grupo" && l.grupo.observacao) {
+          const texto = l.grupo.observacao.toString();
           const linhasTexto = texto.split("\n").length;
           const alturaMinima = linhasTexto * 12 + 6;
           if (hookData.cell.styles.minCellHeight < alturaMinima) {
@@ -646,13 +565,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                   onChange={(e) => {
                     const novo = e.target.value as Tipo;
                     setTipo(novo);
-                    if (novo !== "Religioso") {
-                      setReligiosoNome("");
-                      setReligiosos([]);
-                    }
-                    if (novo !== "Palestra") {
-                      setPalestrante("");
-                    }
                   }}
                   className={inputCls}
                 >
@@ -711,80 +623,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                 </p>
               </div>
 
-              {precisaReligioso && (
-                <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-                    Dados do atendimento religioso
-                  </p>
-                  <div className="block">
-                    <span className="mb-1 block text-xs font-medium text-ink">Nome do Religioso</span>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={religiosoNome}
-                        onChange={(e) => setReligiosoNome(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            adicionarReligiosoNaLista();
-                          }
-                        }}
-                        placeholder="Nome do religioso ou responsável"
-                        className={inputCls}
-                      />
-                      <button
-                        type="button"
-                        onClick={adicionarReligiosoNaLista}
-                        className="shrink-0 rounded-[8px] bg-accent-soft px-3 py-2 text-xs font-semibold text-pure ring-1 ring-accent transition-transform active:scale-[0.97]"
-                      >
-                        + Nome
-                      </button>
-                    </div>
-                    {religiosos.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {religiosos.map((nome) => (
-                          <span
-                            key={nome}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-pure ring-1 ring-accent/20"
-                          >
-                            {nome}
-                            <button
-                              type="button"
-                              onClick={() => removerReligiosoDaLista(nome)}
-                              aria-label={`Remover ${nome}`}
-                              className="grid size-4 place-items-center rounded-full text-pure/70 hover:bg-black/10 hover:text-pure"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <p className="mt-1 text-[11px] text-ink">
-                      Adicione um ou mais nomes, ou o responsável pelo atendimento.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {precisaPalestrante && (
-                <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-                    Dados da palestra
-                  </p>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-ink">Nome do Palestrante</span>
-                    <input
-                      type="text"
-                      value={palestrante}
-                      onChange={(e) => setPalestrante(e.target.value)}
-                      placeholder="Nome do palestrante"
-                      className={inputCls}
-                    />
-                  </label>
-                </div>
-              )}
-
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-ink">Local</span>
                 <input
@@ -806,64 +644,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                   className={inputCls}
                 />
               </div>
-
-              {precisaObservacaoSaude && (
-                <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-                    Dados do atendimento de saúde
-                  </p>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-ink">
-                      Descrição do Atendimento de Saúde / O que será realizado:
-                    </span>
-                    <textarea
-                      value={observacaoSaude}
-                      onChange={(e) => setObservacaoSaude(e.target.value)}
-                      className={inputCls}
-                      rows={3}
-                      placeholder="Descreva o que será feito no atendimento de saúde"
-                    />
-                  </label>
-                </div>
-              )}
-
-              {precisaObservacaoManutencao && (
-                <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-                    Dados da manutenção
-                  </p>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-ink">
-                      Nome do interno responsável / envolvido na manutenção
-                    </span>
-                    <input
-                      type="text"
-                      value={interno}
-                      onChange={(e) => setInterno(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          adicionarInternoNaLista();
-                        }
-                      }}
-                      placeholder="Nome do interno responsável"
-                      className={inputCls}
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-ink">
-                      Descrição da Manutenção / O que será realizado:
-                    </span>
-                    <textarea
-                      value={observacaoManutencao}
-                      onChange={(e) => setObservacaoManutencao(e.target.value)}
-                      className={inputCls}
-                      rows={3}
-                      placeholder="Descreva o que será realizado na manutenção"
-                    />
-                  </label>
-                </div>
-              )}
 
               {precisaPessoa && (
                 <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
@@ -1021,7 +801,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                         </td>
                         <td className="px-3 py-3 text-pure">{l.grupo.local}</td>
                         <td className="px-5 py-3 text-pure">
-                          <span className="whitespace-pre-line">{l.grupo.complemento}</span>
+                          <span className="whitespace-pre-line">{l.grupo.observacao === "—" ? "—" : l.grupo.observacao}</span>
                         </td>
                         <td className="px-3 py-3">
                           <button

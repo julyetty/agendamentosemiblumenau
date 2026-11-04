@@ -11,16 +11,12 @@ type AtendimentoRow = {
   id: number;
   tipo_atendimento: string;
   nome_interno: string | null;
-  nomes_religiosos: string[] | null;
-  nome_palestrante: string | null;
-  observacoes: string | null;
-  observacao_saude: string | null;
-  observacao_manutencao: string | null;
   local: string | null;
+  observacao: string | null;
   data_atendimento: string | null;
   horario: string | null;
   horario_fim: string | null;
-  visitantes: Visitante[] | null;
+  created_at: string;
 };
 
 type AtendimentoMes = {
@@ -31,12 +27,7 @@ type AtendimentoMes = {
   interno: string;
   tipo: string;
   local: string;
-  palestrante?: string | undefined;
-  religiosos?: string[] | undefined;
-  visitantes?: Visitante[] | undefined;
   observacao?: string | undefined;
-  observacaoSaude?: string | undefined;
-  observacaoManutencao?: string | undefined;
 };
 
 type GrupoDia = {
@@ -82,18 +73,7 @@ function dataBr(iso: string) {
 }
 
 function observacaoDoAtendimento(i: AtendimentoMes) {
-  const partes: string[] = [];
-  if (i.palestrante) partes.push(`Palestrante: ${i.palestrante}`);
-  if (i.religiosos && i.religiosos.length > 0) {
-    partes.push(`Religioso: ${i.religiosos.join(", ")}`);
-  }
-  if (i.visitantes && i.visitantes.length > 0) {
-    partes.push(i.visitantes.map((v) => `${v.nome} · ${v.parentesco}`).join("\n"));
-  }
-  if (i.observacaoSaude) partes.push(i.observacaoSaude);
-  if (i.observacaoManutencao) partes.push(`Manutenção: ${i.observacaoManutencao}`);
-  if (i.observacao) partes.push(i.observacao);
-  return partes.length > 0 ? partes.join("\n") : "—";
+  return i.observacao && i.observacao.trim() !== "" ? i.observacao.trim() : "—";
 }
 
 function textoInternos(internos: string[]) {
@@ -111,12 +91,7 @@ function rowToAtendimento(row: AtendimentoRow): AtendimentoMes {
     interno: row.nome_interno ?? "",
     tipo: row.tipo_atendimento || "—",
     local: row.local || "—",
-    palestrante: row.nome_palestrante ?? undefined,
-    religiosos: row.nomes_religiosos ?? undefined,
-    visitantes: Array.isArray(row.visitantes) ? row.visitantes : undefined,
-    observacao: row.observacoes ?? undefined,
-    observacaoSaude: row.observacao_saude ?? undefined,
-    observacaoManutencao: row.observacao_manutencao ?? undefined,
+    observacao: row.observacao ?? undefined,
   };
 }
 
