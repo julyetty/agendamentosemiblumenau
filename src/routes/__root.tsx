@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { NOME_APP } from "@/lib/app-config";
 
 function NotFoundComponent() {
   return (
@@ -78,17 +79,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sistema de Agendamento de Atividades" },
+      { title: NOME_APP },
       {
         name: "description",
-        content:
-          "Agende atendimentos e gere o cronograma diário de atividades da unidade.",
+        content: "Agende atendimentos e gere o cronograma diário de atividades da unidade.",
       },
-      { property: "og:title", content: "Sistema de Agendamento de Atividades" },
+      { property: "og:title", content: NOME_APP },
       {
         property: "og:description",
-        content:
-          "Agende atendimentos e gere o cronograma diário de atividades da unidade.",
+        content: "Agende atendimentos e gere o cronograma diário de atividades da unidade.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -117,7 +116,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>

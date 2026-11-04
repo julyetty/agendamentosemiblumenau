@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { NOME_APP } from "@/lib/app-config";
 import { supabase } from "@/integrations/supabase/client";
 
 const PAGE_SIZE = 1000;
@@ -15,11 +16,11 @@ type AtendimentoRow = {
   nome_palestrante: string | null;
   observacoes: string | null;
   observacao_saude: string | null;
+  observacao_manutencao: string | null;
   local: string | null;
   data_atendimento: string | null;
   horario: string | null;
   horario_fim: string | null;
-  professor: string | null;
   visitantes: Visitante[] | null;
 };
 
@@ -32,11 +33,11 @@ type AtendimentoMes = {
   tipo: string;
   local: string;
   turma?: string | undefined;
-  professor?: string | undefined;
   palestrante?: string | undefined;
   religiosos?: string[] | undefined;
   visitantes?: Visitante[] | undefined;
   observacaoSaude?: string | undefined;
+  observacaoManutencao?: string | undefined;
 };
 
 type GrupoDia = {
@@ -83,25 +84,24 @@ function dataBr(iso: string) {
 }
 
 function observacaoDoAtendimento(i: AtendimentoMes) {
-  if (i.professor) return `Prof. ${i.professor}`;
-  if (i.palestrante) return `Palestrante: ${i.palestrante}`;
+  const partes: string[] = [];
+  if (i.tipo === "Escolarização" && i.turma) partes.push(i.turma);
+  if (i.palestrante) partes.push(`Palestrante: ${i.palestrante}`);
   if (i.religiosos && i.religiosos.length > 0) {
-    return `Religioso: ${i.religiosos.join(", ")}`;
+    partes.push(`Religioso: ${i.religiosos.join(", ")}`);
   }
   if (i.visitantes && i.visitantes.length > 0) {
-    return i.visitantes.map((v) => `${v.nome} · ${v.parentesco}`).join("\n");
+    partes.push(i.visitantes.map((v) => `${v.nome} · ${v.parentesco}`).join("\n"));
   }
-  if (i.observacaoSaude) return i.observacaoSaude;
-  return "—";
+  if (i.observacaoSaude) partes.push(i.observacaoSaude);
+  if (i.observacaoManutencao) partes.push(`Manutenção: ${i.observacaoManutencao}`);
+  return partes.length > 0 ? partes.join("\n") : "—";
 }
 
-function textoInternos(internos: string[], turma?: string) {
-  if (internos.length > 1) {
-    const titulo = turma ? `${turma} · ${internos.length} alunos` : `${internos.length} alunos`;
-    return `${titulo}:\n${internos.join("\n")}`;
-  }
-  if (internos[0] && turma) return `${turma}: ${internos[0]}`;
-  return internos[0] ?? "—";
+function textoInternos(internos: string[]) {
+  const nomes = internos.filter((nome) => nome.trim() !== "");
+  if (nomes.length > 1) return nomes.join("\n");
+  return nomes[0] ?? "—";
 }
 
 function rowToAtendimento(row: AtendimentoRow): AtendimentoMes {
@@ -114,11 +114,11 @@ function rowToAtendimento(row: AtendimentoRow): AtendimentoMes {
     tipo: row.tipo_atendimento || "—",
     local: row.local || "—",
     turma: row.turma ?? undefined,
-    professor: row.professor ?? undefined,
     palestrante: row.nome_palestrante ?? undefined,
     religiosos: row.nomes_religiosos ?? undefined,
     visitantes: Array.isArray(row.visitantes) ? row.visitantes : undefined,
     observacaoSaude: row.observacao_saude ?? undefined,
+    observacaoManutencao: row.observacao_manutencao ?? undefined,
   };
 }
 
@@ -217,14 +217,10 @@ export function gerarPdfHistoricoMensal(mesAno: string, itens: AtendimentoMes[])
 
   doc.setFontSize(13);
   doc.setTextColor(...textoEscuro);
-  doc.text("Histórico Mensal de Atendimentos - Casep Blumenau", 14, 16);
+  doc.text(`Histórico Mensal de Atendimentos - ${NOME_APP}`, 14, 16);
   doc.setFontSize(10);
   doc.text(`Referência: ${mesLabel}`, 14, 23);
-  doc.text(
-    `Total de atendimentos: ${total}`,
-    14,
-    29,
-  );
+  doc.text(`Total de atendimentos: ${total}`, 14, 29);
 
   const body: Array<
     Array<
@@ -269,7 +265,7 @@ export function gerarPdfHistoricoMensal(mesAno: string, itens: AtendimentoMes[])
           dataBr(grupo.data),
           horarioTexto(grupo.horario, grupo.horarioFim),
           grupo.tipo,
-          textoInternos(grupo.internos, grupo.turma),
+          textoInternos(grupo.internos),
           grupo.local,
           grupo.observacao,
         ]);
