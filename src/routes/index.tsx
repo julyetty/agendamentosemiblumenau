@@ -562,6 +562,9 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                   onChange={(e) => {
                     const novo = e.target.value as Tipo;
                     setTipo(novo);
+                    if (novo === "Videochamada") {
+                      setObservacao("Dados da videochamada");
+                    }
                   }}
                   className={inputCls}
                 >
