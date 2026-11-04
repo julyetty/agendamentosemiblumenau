@@ -176,6 +176,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   const [salvando, setSalvando] = useState(false);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [observacao, setObservacao] = useState("");
+  const [repetirSemanalmente, setRepetirSemanalmente] = useState(false);
 
   const precisaPessoa = tipo === "Videochamada" || tipo === "Visita presencial";
 
@@ -211,17 +212,40 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     };
   }, []);
 
-  const limpar = () => {
-      setHorario("");
-      setHorarioFim("");
-      setInterno("");
-      setInternos([]);
-      setVisitanteNome("");
-      setVisitanteParentesco("");
-      setVisitantes([]);
-      setObservacao("");
-      setErro("");
-    };
+  function calcularSegundasFeiras(dataInicial: string, meses: number = 3): string[] {
+      const datas: string[] = [];
+      const inicio = new Date(dataInicial + "T00:00:00");
+      const fim = new Date(inicio);
+      fim.setMonth(fim.getMonth() + meses);
+  
+      let atual = new Date(inicio);
+      // Ajustar para a próxima segunda-feira se a data inicial não for segunda
+      const diaSemana = atual.getDay(); // 0 = domingo, 1 = segunda, ...
+      if (diaSemana !== 1) {
+        const diasParaSegunda = (8 - diaSemana) % 7 || 7;
+        atual.setDate(atual.getDate() + diasParaSegunda);
+      }
+  
+      while (atual <= fim) {
+        datas.push(atual.toISOString().slice(0, 10));
+        atual.setDate(atual.getDate() + 7);
+      }
+  
+      return datas;
+    }
+  
+    const limpar = () => {
+        setHorario("");
+        setHorarioFim("");
+        setInterno("");
+        setInternos([]);
+        setVisitanteNome("");
+        setVisitanteParentesco("");
+        setVisitantes([]);
+        setObservacao("");
+        setRepetirSemanalmente(false);
+        setErro("");
+      };
 
   const adicionarVisitanteNaLista = () => {
     const nome = visitanteNome.trim();
@@ -284,18 +308,35 @@ function Cronograma({ onSair }: { onSair: () => void }) {
             ? formatarObservacaoVisitaPresencial(visitantes)
             : observacao.trim() || undefined;
 
-      const registros = nomes.map((nome) => {
-        return {
-          data_atendimento: data,
-          horario_inicio: horario,
-          horario_fim: horarioFim,
-          horario: `${horario} - ${horarioFim}`,
-          tipo_atendimento: tipo,
-          nome_interno: nome,
-          local: local.trim(),
-          observacao: observacaoFinal,
-        };
-      });
+      const datas = repetirSemanalmente
+        ? calcularSegundasFeiras(data, 3)
+        : [data];
+
+      const registros: Array<{
+        data_atendimento: string;
+        horario_inicio: string;
+        horario_fim: string;
+        horario: string;
+        tipo_atendimento: Tipo;
+        nome_interno: string;
+        local: string;
+        observacao: string | undefined;
+      }> = [];
+
+      for (const dataAtendimento of datas) {
+        for (const nome of nomes) {
+          registros.push({
+            data_atendimento: dataAtendimento,
+            horario_inicio: horario,
+            horario_fim: horarioFim,
+            horario: `${horario} - ${horarioFim}`,
+            tipo_atendimento: tipo,
+            nome_interno: nome,
+            local: local.trim(),
+            observacao: observacaoFinal,
+          });
+        }
+      }
 
     try {
       const { error } = await supabase.from("atendimentos").insert(registros);
@@ -748,6 +789,18 @@ function Cronograma({ onSair }: { onSair: () => void }) {
               )}
 
               {erro && <p className="text-xs font-medium text-clay">{erro}</p>}
+
+              <div className="flex items-center gap-2 pt-1">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={repetirSemanalmente}
+                    onChange={(e) => setRepetirSemanalmente(e.target.checked)}
+                    className="size-4 rounded-[4px] border border-line bg-white accent-accent"
+                  />
+                  <span className="text-xs font-medium text-ink">Repetir semanalmente</span>
+                </label>
+              </div>
 
               <div className="flex gap-2 pt-1">
                 <button
