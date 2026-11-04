@@ -54,22 +54,12 @@ type AtendimentoRow = {
   created_at: string;
 };
 
-const INTERVALOS = [
-  { horario: "09:30", fim: "09:45", periodo: "manhã" },
-  { horario: "15:00", fim: "15:15", periodo: "tarde" },
-];
-
 const hoje = () => new Date().toISOString().slice(0, 10);
 
 function dataLocal(iso: string) {
   const [a, m, d] = iso.split("-").map(Number);
   if (!a || !m || !d) return new Date();
   return new Date(a, m - 1, d);
-}
-
-function ehFimDeSemana(iso: string) {
-  const dia = dataLocal(iso).getDay();
-  return dia === 0 || dia === 6;
 }
 
 function tituloDoDia(iso: string) {
@@ -151,7 +141,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   const [observacao, setObservacao] = useState("");
 
   const precisaPessoa = tipo === "Videochamada" || tipo === "Visita presencial";
-  const fimDeSemana = ehFimDeSemana(data);
 
   const carregarAtendimentos = async () => {
     try {
@@ -329,7 +318,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
 
   type Linha =
     | { kind: "grupo"; grupo: Grupo }
-    | { kind: "intervalo"; horario: string; fim: string; periodo: string }
     | { kind: "turno" };
 
   const linhas: Linha[] = useMemo(() => {
@@ -359,21 +347,24 @@ function Cronograma({ onSair }: { onSair: () => void }) {
         observacao: comp,
       });
     }
+
     const base: Linha[] = grupos.map((grupo) => ({ kind: "grupo", grupo }));
-    const pausas: Linha[] = ehFimDeSemana(data)
-      ? []
-      : INTERVALOS.map((i) => ({ kind: "intervalo", ...i }));
-    const horaDe = (l: Linha) =>
-      l.kind === "grupo" ? l.grupo.horario : l.kind === "intervalo" ? l.horario : "13:00";
-    const ordenadas = [...base, ...pausas].sort((a, b) =>
-      horaDe(a).localeCompare(horaDe(b)),
-    );
-    const idxTarde = ordenadas.findIndex((l) => horaDe(l) >= "13:00");
+    const ordenadas = [...base].sort((a, b) => {
+      const ha = a.kind === "grupo" ? a.grupo.horario : "13:00";
+      const hb = b.kind === "grupo" ? b.grupo.horario : "13:00";
+      return ha.localeCompare(hb);
+    });
+
+    const idxTarde = ordenadas.findIndex((l) => {
+      if (l.kind !== "grupo") return false;
+      return l.grupo.horario >= "13:00";
+    });
     if (idxTarde > 0) {
       ordenadas.splice(idxTarde, 0, { kind: "turno" });
     }
+
     return ordenadas;
-  }, [doDia, data]);
+  }, [doDia]);
 
   const gerarHorarioTexto = (horario: string, horarioFim: string) => {
     // Se já vier com o formato "Hora – Hora", exibe direto
@@ -391,11 +382,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     doc.text(NOME_APP, 14, 14);
     doc.setFontSize(12);
     doc.text(`Cronograma de Atendimento Diário — ${tituloDoDia(data)}`, 14, 22);
-    if (!fimDeSemana) {
-      doc.setFontSize(8);
-      doc.setTextColor(75, 85, 99);
-      doc.text("Intervalos de escolarização: 09:30 – 09:45 (manhã) e 15:00 – 15:15 (tarde)", 14, 28);
-    }
 
     const zebraPar: [number, number, number] = [255, 255, 255];
     const zebraImpar: [number, number, number] = [243, 244, 246];
@@ -404,7 +390,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     const destaque: [number, number, number] = [31, 41, 55];
 
     autoTable(doc, {
-      startY: fimDeSemana ? 28 : 33,
+      startY: 28,
       margin: { left: 14, right: 14 },
       head: [["Horário", "Atendimento", "Interno", "Local", "OBSERVAÇÃO"]],
       columnStyles: {
@@ -417,15 +403,13 @@ function Cronograma({ onSair }: { onSair: () => void }) {
       body: linhas.map((l) =>
         l.kind === "turno"
           ? ["", "", "", "", ""]
-          : l.kind === "intervalo"
-            ? [`${l.horario} – ${l.fim}`, "Intervalo Escolarização", "—", "—", ""]
-            : [
-                gerarHorarioTexto(l.grupo.horario, l.grupo.horarioFim),
-                l.grupo.tipo,
-                nomesDosInternos(l.grupo.internos),
-                l.grupo.local,
-                l.grupo.observacao === "—" ? "—" : l.grupo.observacao,
-              ],
+          : [
+              gerarHorarioTexto(l.grupo.horario, l.grupo.horarioFim),
+              l.grupo.tipo,
+              nomesDosInternos(l.grupo.internos),
+              l.grupo.local,
+              l.grupo.observacao === "—" ? "—" : l.grupo.observacao,
+            ],
       ),
       theme: "grid",
       headStyles: {
@@ -765,24 +749,6 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                         <td colSpan={6} className="bg-surface px-5 py-2.5">
                           <div className="border-t-2 border-ink/60" />
                         </td>
-                      </tr>
-                    ) : l.kind === "intervalo" ? (
-                      <tr
-                        key={`int-${l.horario}`}
-                        className="border-b border-line/70 bg-act-intervalo/60"
-                      >
-                        <td className="px-5 py-3 font-medium tabular-nums text-pure">
-                          {l.horario} – {l.fim}
-                        </td>
-                        <td className="px-3 py-3">
-                          <span className="rounded-full bg-act-intervalo px-2.5 py-1 text-xs font-medium text-pure">
-                            Intervalo Escolarização
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-pure">—</td>
-                        <td className="px-3 py-3 text-pure">—</td>
-                        <td className="px-5 py-3 text-pure">—</td>
-                        <td className="px-3 py-3 text-pure">—</td>
                       </tr>
                     ) : (
                       <tr key={l.grupo.ids.join("-")} className="border-b border-line/70">
