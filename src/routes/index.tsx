@@ -245,7 +245,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
           data_atendimento: data,
           horario_inicio: horario,
           horario_fim: horarioFim,
-          horario: horario,
+          horario: `${horario} - ${horarioFim}`,
           tipo_atendimento: tipo,
           nome_interno: nome,
           local: local.trim(),
@@ -272,47 +272,21 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     }
   };
 
-  // Função auxiliar para validar e converter ID para o formato adequado
-  function validarId(id: string): string | number | null {
-    // Se o ID for vazio, nulo ou NaN, retorna null
-    if (!id || id === "null" || id === "undefined" || isNaN(Number(id))) {
-      return null;
-    }
-    const numId = Number(id);
-    // Se for um número válido, retorna o número
-    if (!isNaN(numId)) {
-      return numId;
-    }
-    // Caso contrário, retorna o ID como string (para UUIDs)
-    return id;
-  }
-
-  const excluirGrupo = async (ids: string[]) => {
-    // Filtra IDs inválidos (null, undefined, NaN) antes de prosseguir
-    const idsValidos = ids.filter((id) => {
-      const validado = validarId(id);
-      return validado !== null;
-    });
-
-    if (idsValidos.length === 0) {
-      setErro("Nenhum ID válido encontrado para exclusão.");
-      setExcluindoId(null);
+  const excluirAtendimento = async (id: string) => {
+    // Valida que o ID é um número simples antes de prosseguir
+    const idNum = Number(id);
+    if (!id || isNaN(idNum)) {
+      setErro("ID inválido para exclusão.");
       return;
     }
 
-    setExcluindoId(idsValidos[0] ?? null);
+    setExcluindoId(id);
 
     try {
-      // Converte IDs para o formato adequado para o Supabase
-      const idsFormatados = idsValidos.map((id) => {
-        const validado = validarId(String(id));
-        return validado;
-      });
-
       const { error } = await supabase
         .from("atendimentos")
         .delete()
-        .in("id", idsFormatados as (string | number)[]);
+        .eq("id", idNum);
 
       if (error) {
         setErro(error.message);
@@ -327,6 +301,13 @@ function Cronograma({ onSair }: { onSair: () => void }) {
       toast.error(msg);
     } finally {
       setExcluindoId(null);
+    }
+  };
+
+  const excluirGrupo = async (ids: string[]) => {
+    // Exclui cada atendimento individualmente usando .eq('id', id)
+    for (const id of ids) {
+      await excluirAtendimento(id);
     }
   };
 
