@@ -173,12 +173,14 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   const [visitanteParentesco, setVisitanteParentesco] = useState("");
   const [visitantes, setVisitantes] = useState<Visitante[]>([]);
   const [erro, setErro] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const [excluindoId, setExcluindoId] = useState<string | null>(null);
-  const [observacao, setObservacao] = useState("");
-  const [repetirSemanalmente, setRepetirSemanalmente] = useState(false);
-
-  const precisaPessoa = tipo === "Videochamada" || tipo === "Visita presencial";
+    const [salvando, setSalvando] = useState(false);
+    const [excluindoId, setExcluindoId] = useState<string | null>(null);
+    const [observacao, setObservacao] = useState("");
+    const [repetirSemanalmente, setRepetirSemanalmente] = useState(false);
+    const [agendamentoRecorrente, setAgendamentoRecorrente] = useState(false);
+    const [duracaoRecorrencia, setDuracaoRecorrencia] = useState("1 mes");
+  
+    const precisaPessoa = tipo === "Videochamada" || tipo === "Visita presencial";
 
   const carregarAtendimentos = async () => {
     try {
@@ -212,11 +214,11 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     };
   }, []);
 
-  function calcularSegundasFeiras(dataInicial: string, meses: number = 3): string[] {
+  function calcularSegundasFeiras(dataInicial: string, semanas: number = 12): string[] {
       const datas: string[] = [];
       const inicio = new Date(dataInicial + "T00:00:00");
       const fim = new Date(inicio);
-      fim.setMonth(fim.getMonth() + meses);
+      fim.setDate(fim.getDate() + semanas * 7);
   
       let atual = new Date(inicio);
       // Ajustar para a próxima segunda-feira se a data inicial não for segunda
@@ -244,6 +246,8 @@ function Cronograma({ onSair }: { onSair: () => void }) {
         setVisitantes([]);
         setObservacao("");
         setRepetirSemanalmente(false);
+        setAgendamentoRecorrente(false);
+        setDuracaoRecorrencia("1 mes");
         setErro("");
       };
 
@@ -308,9 +312,15 @@ function Cronograma({ onSair }: { onSair: () => void }) {
             ? formatarObservacaoVisitaPresencial(visitantes)
             : observacao.trim() || undefined;
 
-      const datas = repetirSemanalmente
-        ? calcularSegundasFeiras(data, 3)
-        : [data];
+      const datas: string[] = [];
+      if (agendamentoRecorrente) {
+        const semanas = duracaoRecorrencia === "1 mes" ? 4 : duracaoRecorrencia === "2 meses" ? 8 : 12;
+        datas.push(...calcularSegundasFeiras(data, semanas));
+      } else if (repetirSemanalmente) {
+        datas.push(...calcularSegundasFeiras(data, 12));
+      } else {
+        datas.push(data);
+      }
 
       const registros: Array<{
         data_atendimento: string;
@@ -794,13 +804,28 @@ function Cronograma({ onSair }: { onSair: () => void }) {
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={repetirSemanalmente}
-                    onChange={(e) => setRepetirSemanalmente(e.target.checked)}
+                    checked={agendamentoRecorrente}
+                    onChange={(e) => setAgendamentoRecorrente(e.target.checked)}
                     className="size-4 rounded-[4px] border border-line bg-white accent-accent"
                   />
-                  <span className="text-xs font-medium text-ink">Repetir semanalmente</span>
+                  <span className="text-xs font-medium text-ink">Agendamento Recorrente</span>
                 </label>
               </div>
+
+              {agendamentoRecorrente && (
+                <div className="block">
+                  <span className="mb-1 block text-xs font-medium text-ink">Duração da Recorrência</span>
+                  <select
+                    value={duracaoRecorrencia}
+                    onChange={(e) => setDuracaoRecorrencia(e.target.value)}
+                    className={`${inputCls}`}
+                  >
+                    <option value="1 mes">1 mês (próximas 4 semanas)</option>
+                    <option value="2 meses">2 meses (próximas 8 semanas)</option>
+                    <option value="3 meses">3 meses (próximas 12 semanas)</option>
+                  </select>
+                </div>
+              )}
 
               <div className="flex gap-2 pt-1">
                 <button
