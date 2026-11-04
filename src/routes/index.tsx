@@ -256,6 +256,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
           data_atendimento: data,
           horario_inicio: horario,
           horario_fim: horarioFim,
+          horario: `${horario} - ${horarioFim}`,
           tipo_atendimento: tipo,
           nome_interno: nome,
           local: local.trim(),
