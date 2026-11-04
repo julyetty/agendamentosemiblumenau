@@ -7,7 +7,7 @@ import { ExportarPdfMes } from "@/components/exportar-pdf-mes";
 import { AUTH_STORAGE_KEY, TelaSenha, sairDaSessao } from "@/components/tela-senha";
 import { supabase } from "@/integrations/supabase/client";
 import { NOME_APP } from "@/lib/app-config";
-import { LOCAIS, TIPOS, TONE, asLocal, asTipo, type Local, type Tipo } from "@/lib/atendimento";
+import { TIPOS, TONE, asTipo, type Tipo } from "@/lib/atendimento";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,11 +38,12 @@ type Agendamento = {
   horarioFim: string;
   interno: string;
   tipo: Tipo;
-  local: Local;
+  local: string;
   turma?: string | undefined;
   palestrante?: string | undefined;
   religiosos?: string[] | undefined;
   visitantes?: Visitante[] | undefined;
+  observacao?: string | undefined;
   observacaoSaude?: string | undefined;
   observacaoManutencao?: string | undefined;
 };
@@ -110,6 +111,7 @@ function observacaoDoAgendamento(i: Agendamento) {
   }
   if (i.observacaoSaude) partes.push(i.observacaoSaude);
   if (i.observacaoManutencao) partes.push(`Manutenção: ${i.observacaoManutencao}`);
+  if (i.observacao) partes.push(i.observacao);
   return partes.length > 0 ? partes.join("\n") : "—";
 }
 
@@ -135,11 +137,12 @@ function rowToAgendamento(row: AtendimentoRow): Agendamento {
     horarioFim: row.horario_fim ?? "",
     interno: row.nome_interno ?? "",
     tipo: asTipo(row.tipo_atendimento),
-    local: asLocal(row.local),
+    local: row.local ?? "",
     turma: row.turma ?? undefined,
     palestrante: row.nome_palestrante ?? undefined,
     religiosos: row.nomes_religiosos ?? undefined,
     visitantes: Array.isArray(row.visitantes) ? row.visitantes : undefined,
+    observacao: row.observacoes ?? undefined,
     observacaoSaude: row.observacao_saude ?? undefined,
     observacaoManutencao: row.observacao_manutencao ?? undefined,
   };
@@ -175,7 +178,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   const [interno, setInterno] = useState("");
   const [internos, setInternos] = useState<string[]>([]);
   const [tipo, setTipo] = useState<Tipo>("Psicológico");
-  const [local, setLocal] = useState<Local>("Hall central");
+  const [local, setLocal] = useState("");
   const [nomeEscola, setNomeEscola] = useState("");
   const [palestrante, setPalestrante] = useState("");
   const [religiosoNome, setReligiosoNome] = useState("");
@@ -188,6 +191,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [observacaoSaude, setObservacaoSaude] = useState("");
   const [observacaoManutencao, setObservacaoManutencao] = useState("");
+  const [observacao, setObservacao] = useState("");
 
   const precisaObservacaoSaude = tipo === "Saúde";
   const precisaObservacaoManutencao = tipo === "Manutenção";
@@ -242,6 +246,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
       setVisitantes([]);
       setObservacaoSaude("");
       setObservacaoManutencao("");
+      setObservacao("");
       setErro("");
     };
 
@@ -315,8 +320,8 @@ function Cronograma({ onSair }: { onSair: () => void }) {
         setErro("O horário de fim deve ser depois do horário de início.");
         return;
       }
-      if (!local) {
-        setErro("Selecione o local do atendimento.");
+      if (!local.trim()) {
+        setErro("Informe o local do atendimento.");
         return;
       }
       if (tipo === "Escolarização" && !escola) {
@@ -342,26 +347,27 @@ function Cronograma({ onSair }: { onSair: () => void }) {
           horarioFim,
           interno: nome,
           tipo,
-          local,
+          local: local.trim(),
           turma: tipo === "Escolarização" ? escola : undefined,
           palestrante: precisaPalestrante && nomePalestrante ? nomePalestrante : undefined,
           religiosos: precisaReligioso && listaReligiosos.length > 0 ? listaReligiosos : undefined,
           visitantes: precisaPessoa ? listaVisitantes : undefined,
+          observacao: observacao.trim() || undefined,
           observacaoSaude: precisaObservacaoSaude && observacaoSaude.trim() ? observacaoSaude.trim() : undefined,
           observacaoManutencao:
             precisaObservacaoManutencao && observacaoManutencao.trim() ? observacaoManutencao.trim() : undefined,
         };
-        const observacao = observacaoDoAgendamento(item);
+        const observacaoTexto = observacaoDoAgendamento(item);
         return {
           tipo_atendimento: tipo,
           nome_interno: nome,
           turma: tipo === "Escolarização" ? escola : null,
           nomes_religiosos: precisaReligioso && listaReligiosos.length > 0 ? listaReligiosos : null,
           nome_palestrante: precisaPalestrante && nomePalestrante ? nomePalestrante : null,
-          observacoes: observacao === "—" ? null : observacao,
+          observacoes: observacaoTexto === "—" ? null : observacaoTexto,
           observacao_saude: item.observacaoSaude ?? null,
           observacao_manutencao: item.observacaoManutencao ?? null,
-          local,
+          local: local.trim(),
           data_atendimento: data,
           horario,
           horario_fim: horarioFim,
@@ -427,7 +433,7 @@ function Cronograma({ onSair }: { onSair: () => void }) {
     horario: string;
     horarioFim: string;
     tipo: Tipo;
-    local: Local;
+    local: string;
     turma?: string | undefined;
     internos: string[];
     complemento: string;
@@ -809,16 +815,25 @@ function Cronograma({ onSair }: { onSair: () => void }) {
 
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-ink">Local</span>
-                <select
+                <input
+                  type="text"
                   value={local}
-                  onChange={(e) => setLocal(e.target.value as Local)}
+                  onChange={(e) => setLocal(e.target.value)}
+                  placeholder="Digite o local do atendimento"
                   className={inputCls}
-                >
-                  {LOCAIS.map((l) => (
-                    <option key={l}>{l}</option>
-                  ))}
-                </select>
+                />
               </label>
+
+              <div className="block">
+                <span className="mb-1 block text-xs font-medium text-ink">Observação</span>
+                <textarea
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  rows={2}
+                  placeholder="Digite observações adicionais sobre esta atividade (opcional)..."
+                  className={inputCls}
+                />
+              </div>
 
               {precisaObservacaoSaude && (
                 <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
@@ -879,23 +894,23 @@ function Cronograma({ onSair }: { onSair: () => void }) {
               )}
 
               {tipo === "Escolarização" && (
-                              <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-                                  Dados da escolarização
-                                </p>
-                                <label className="block">
-                                  <span className="mb-1 block text-xs font-medium text-ink">Nome da Escola / Observação:</span>
-                                  <textarea
-                                    value={nomeEscola}
-                                    onChange={(e) => setNomeEscola(e.target.value)}
-                                    rows={2}
-                                    required
-                                    placeholder="Informe a instituição de ensino responsável"
-                                    className={inputCls}
-                                  />
-                                </label>
-                              </div>
-                            )}
+                <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
+                    Dados da escolarização
+                  </p>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-ink">Nome da Escola / Observação:</span>
+                    <textarea
+                      value={nomeEscola}
+                      onChange={(e) => setNomeEscola(e.target.value)}
+                      rows={2}
+                      required
+                      placeholder="Informe a instituição de ensino responsável"
+                      className={inputCls}
+                    />
+                  </label>
+                </div>
+              )}
 
               {precisaPessoa && (
                 <div className="space-y-3 rounded-[10px] bg-accent-soft/60 p-3 ring-1 ring-accent/15">

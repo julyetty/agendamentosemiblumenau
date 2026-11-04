@@ -36,6 +36,7 @@ type AtendimentoMes = {
   palestrante?: string | undefined;
   religiosos?: string[] | undefined;
   visitantes?: Visitante[] | undefined;
+  observacao?: string | undefined;
   observacaoSaude?: string | undefined;
   observacaoManutencao?: string | undefined;
 };
@@ -95,6 +96,7 @@ function observacaoDoAtendimento(i: AtendimentoMes) {
   }
   if (i.observacaoSaude) partes.push(i.observacaoSaude);
   if (i.observacaoManutencao) partes.push(`Manutenção: ${i.observacaoManutencao}`);
+  if (i.observacao) partes.push(i.observacao);
   return partes.length > 0 ? partes.join("\n") : "—";
 }
 
@@ -117,6 +119,7 @@ function rowToAtendimento(row: AtendimentoRow): AtendimentoMes {
     palestrante: row.nome_palestrante ?? undefined,
     religiosos: row.nomes_religiosos ?? undefined,
     visitantes: Array.isArray(row.visitantes) ? row.visitantes : undefined,
+    observacao: row.observacoes ?? undefined,
     observacaoSaude: row.observacao_saude ?? undefined,
     observacaoManutencao: row.observacao_manutencao ?? undefined,
   };
