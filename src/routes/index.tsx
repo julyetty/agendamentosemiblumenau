@@ -252,24 +252,14 @@ function Cronograma({ onSair }: { onSair: () => void }) {
       }
 
       const registros = nomes.map((nome) => {
-        const observacaoTexto = observacaoDoAgendamento({
-          id: "",
-          data,
-          horario,
-          horarioFim,
-          interno: nome,
-          tipo,
-          local: local.trim(),
-          observacao: observacao.trim() || undefined,
-        });
         return {
+          data_atendimento: data,
+          horario_inicio: horario,
+          horario_fim: horarioFim,
           tipo_atendimento: tipo,
           nome_interno: nome,
           local: local.trim(),
-          observacao: observacaoTexto === "—" ? null : observacaoTexto,
-          data_atendimento: data,
-          horario,
-          horario_fim: horarioFim,
+          observacao: observacao.trim() || undefined,
         };
       });
 
